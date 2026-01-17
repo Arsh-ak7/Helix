@@ -1,2 +1,22 @@
+# Swift Build
+.build/
+
+# Xcode
+build/
+DerivedData/
+*.xcodeproj/*
+!*.xcodeproj/project.pbxproj
+!*.xcodeproj/xcshareddata/
+!*.xcodeproj/project.xcworkspace/contents.xcworkspacedata
+*.xcworkspace/*
+!*.xcworkspace/contents.xcworkspacedata
+
+# Local Settings
+.sourcekit-lsp/config.json
+buildServer.json
+
+# OS files
+.DS_Store
+
 .gemini/
 .agent/

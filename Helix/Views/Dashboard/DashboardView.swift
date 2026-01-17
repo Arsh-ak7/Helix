@@ -9,6 +9,9 @@ struct DashboardView: View {
     
     @State private var activeWorkout: Workout?
     @State private var showCreateRoutine = false
+    @State private var selectedRoutineToEdit: Routine?
+    @State private var routineToDelete: Routine?
+    @State private var showDeleteConfirmation = false
     
     var body: some View {
         NavigationStack {
@@ -126,6 +129,20 @@ struct DashboardView: View {
                                                 )
                                                 .shadow(color: Color.black.opacity(0.02), radius: 4, x: 0, y: 2)
                                             }
+                                            .contextMenu {
+                                                Button {
+                                                    selectedRoutineToEdit = routine
+                                                } label: {
+                                                    Label("Edit Routine", systemImage: "pencil")
+                                                }
+                                                
+                                                Button(role: .destructive) {
+                                                    routineToDelete = routine
+                                                    showDeleteConfirmation = true
+                                                } label: {
+                                                    Label("Delete", systemImage: "trash")
+                                                }
+                                            }
                                         }
                                     }
                                     .padding(.horizontal, 2)
@@ -177,25 +194,41 @@ struct DashboardView: View {
                                 }
                             }
                         }
-                    // Analytics / Charts
-                    if !recentWorkouts.isEmpty {
-                        WeeklyVolumeChart(workouts: recentWorkouts)
+                        
+                        // Analytics / Charts
+                        if !recentWorkouts.isEmpty {
+                            WeeklyVolumeChart(workouts: recentWorkouts)
+                        }
                     }
+                    .padding(24)
                 }
-                .padding(24)
             }
-        }
-        .sheet(isPresented: $showCreateRoutine) {
-            CreateRoutineView()
-        }
-        .fullScreenCover(item: $activeWorkout) { workout in
-            ZStack {
-                ActiveWorkoutView(workout: workout)
-                TimerOverlayView(timerManager: timerManager)
+            .sheet(isPresented: $showCreateRoutine) {
+                CreateRoutineView()
             }
-            .environmentObject(timerManager)
+            .sheet(item: $selectedRoutineToEdit) { routine in
+                CreateRoutineView(routineToEdit: routine)
+            }
+            .fullScreenCover(item: $activeWorkout) { workout in
+                ZStack {
+                    ActiveWorkoutView(workout: workout)
+                    TimerOverlayView(timerManager: timerManager)
+                }
+                .environmentObject(timerManager)
+            }
+            .alert("Delete Routine?", isPresented: $showDeleteConfirmation, presenting: routineToDelete) { routine in
+                Button("Delete", role: .destructive) {
+                    deleteRoutine(routine)
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: { routine in
+                Text("Are you sure you want to delete '\(routine.name)'? This cannot be undone.")
+            }
         }
     }
+    
+    private func deleteRoutine(_ routine: Routine) {
+        modelContext.delete(routine)
     }
     
     private func startNewWorkout() {
@@ -211,7 +244,11 @@ struct DashboardView: View {
         let sortedRoutineExercises = routine.exercises.sorted(by: { $0.orderIndex < $1.orderIndex })
         for (index, routineEx) in sortedRoutineExercises.enumerated() {
             if let exercise = routineEx.exercise {
-                let workoutExercise = WorkoutExercise(exercise: exercise, orderIndex: index)
+                let workoutExercise = WorkoutExercise(
+                    exercise: exercise,
+                    orderIndex: index,
+                    restDuration: routineEx.restDuration ?? 90
+                )
                 workoutExercise.workout = newWorkout
                 
                 // Add one initial empty set
@@ -231,5 +268,5 @@ struct DashboardView: View {
 #Preview {
     DashboardView()
         .environmentObject(TimerManager())
-        .modelContainer(for: [Workout.self, Exercise.self, WorkoutExercise.self, WorkoutSet.self], inMemory: true)
+        .modelContainer(for: [Workout.self, Exercise.self, WorkoutExercise.self, WorkoutSet.self, Routine.self, RoutineExercise.self], inMemory: true)
 }

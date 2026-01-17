@@ -1,16 +1,16 @@
 ---
-description: Build the Helix project using xcodebuild
+description: Build the Helix project using xcodebuild with xcbeautify
 ---
 
-To build the Helix project, run:
-
-```bash
-xcodebuild -project Helix.xcodeproj -scheme Helix -configuration Debug -destination 'platform=iOS Simulator,name=iPhone 17' build
-```
-
-// turbo
-If `xcbeautify` is installed, you can use:
+To build the Helix project with clean logs, run:
 
 ```bash
 set -o pipefail && xcodebuild -project Helix.xcodeproj -scheme Helix -configuration Debug -destination 'platform=iOS Simulator,name=iPhone 17' build | xcbeautify
+```
+
+// turbo
+If `xcbeautify` is not installed, use the raw command:
+
+```bash
+xcodebuild -project Helix.xcodeproj -scheme Helix -configuration Debug -destination 'platform=iOS Simulator,name=iPhone 17' build
 ```

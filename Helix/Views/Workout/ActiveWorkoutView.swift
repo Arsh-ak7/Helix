@@ -8,6 +8,7 @@ struct ActiveWorkoutView: View {
     @EnvironmentObject var timerManager: TimerManager
     
     @State private var showExerciseSelection = false
+    @State private var showDeleteConfirmation = false
     @FocusState private var focusedField: UUID?
     
     var body: some View {
@@ -76,7 +77,7 @@ struct ActiveWorkoutView: View {
                 }
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") {
-                        deleteWorkout()
+                        showDeleteConfirmation = true
                     }
                     .foregroundStyle(.red.opacity(0.8))
                     .font(.system(.body, design: .serif))
@@ -84,6 +85,14 @@ struct ActiveWorkoutView: View {
             }
             .sheet(isPresented: $showExerciseSelection) {
                 ExerciseSelectionView(workout: workout)
+            }
+            .alert("Discard Session?", isPresented: $showDeleteConfirmation) {
+                Button("Discard", role: .destructive) {
+                    deleteWorkout()
+                }
+                Button("Resume", role: .cancel) { }
+            } message: {
+                Text("This workout data will be lost.")
             }
         }
     }
@@ -144,11 +153,13 @@ struct ExerciseCard: View {
             }
             
             // Sets Header
-            HStack(spacing: 16) {
+            HStack(spacing: 12) {
                 Text("Set").frame(width: 40, alignment: .leading)
                 Spacer()
-                Text("kg").frame(width: 80, alignment: .center)
-                Text("Reps").frame(width: 80, alignment: .center)
+                Text("kg").frame(width: 60, alignment: .center)
+                Text("Reps").frame(width: 50, alignment: .center)
+                Text("RPE").frame(width: 40, alignment: .center)
+                Text(" ").frame(width: 20) // Spacing for delete button
             }
             .font(.caption)
             .textCase(.uppercase)
@@ -169,7 +180,7 @@ struct ExerciseCard: View {
             Button {
                 focusedField.wrappedValue = nil // Dismiss keyboard
                 addSet()
-                timerManager.startTimer(duration: 90)
+                timerManager.startTimer(duration: Double(workoutExercise.restDuration))
             } label: {
                 Text("Add Set")
                     .font(.system(.subheadline, design: .serif))
@@ -230,10 +241,20 @@ struct SetRow: View {
             }
             .buttonStyle(.plain)
             
-            Text("\(index)")
-                .font(.system(.body, design: .monospaced))
-                .frame(width: 30, alignment: .center)
-                .foregroundStyle(.secondary)
+            // Set Type / Index
+            Menu {
+                Button("Normal") { set.setType = "Normal" }
+                Button("Warmup") { set.setType = "Warmup" }
+                Button("Drop Set") { set.setType = "Drop" }
+                Button("Failure") { set.setType = "Failure" }
+            } label: {
+                Text(setLabel)
+                    .font(.system(.body, design: .monospaced))
+                    .fontWeight(.bold)
+                    .frame(width: 30, alignment: .center)
+                    .foregroundStyle(setTypeColor)
+                    .contentShape(Rectangle())
+            }
             
             Spacer()
             
@@ -243,7 +264,7 @@ struct SetRow: View {
                 .focused(focusedField, equals: set.id)
                 .font(.system(.body, design: .monospaced))
                 .padding(.vertical, 10)
-                .frame(width: 70)
+                .frame(width: 60)
                 .background(Color("AppBackground"))
                 .cornerRadius(8)
                 .opacity(set.isCompleted ? 0.6 : 1.0) // Dim if completed
@@ -254,7 +275,19 @@ struct SetRow: View {
                 .focused(focusedField, equals: set.id)
                 .font(.system(.body, design: .monospaced))
                 .padding(.vertical, 10)
-                .frame(width: 70)
+                .frame(width: 50)
+                .background(Color("AppBackground"))
+                .cornerRadius(8)
+                .opacity(set.isCompleted ? 0.6 : 1.0)
+            
+            // RPE Field
+            TextField("RPE", value: $set.rpe, format: .number)
+                .keyboardType(.numberPad)
+                .multilineTextAlignment(.center)
+                .focused(focusedField, equals: set.id)
+                .font(.system(.body, design: .monospaced))
+                .padding(.vertical, 10)
+                .frame(width: 40)
                 .background(Color("AppBackground"))
                 .cornerRadius(8)
                 .opacity(set.isCompleted ? 0.6 : 1.0)
@@ -270,5 +303,23 @@ struct SetRow: View {
         }
         .padding(.trailing, 8)
         .padding(.vertical, 4)
+    }
+    
+    private var setTypeColor: Color {
+        switch set.setType ?? "Normal" {
+        case "Warmup": return .orange
+        case "Drop": return .purple
+        case "Failure": return .red
+        default: return .secondary
+        }
+    }
+    
+    private var setLabel: String {
+        switch set.setType ?? "Normal" {
+        case "Warmup": return "W"
+        case "Drop": return "D"
+        case "Failure": return "F"
+        default: return "\(index)"
+        }
     }
 }

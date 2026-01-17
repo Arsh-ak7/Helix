@@ -24,12 +24,16 @@ final class RoutineExercise {
     var exercise: Exercise? // Reference to the master exercise
     var routine: Routine?
     
-    // We only need to store the target sets/reps structure, typically we just store the list of exercises for now.
-    // Enhanced version could store "Target Sets/Reps".
+    var targetSets: Int? = 3
+    var targetReps: String? = "10"
+    var restDuration: Int? = 90
     
-    init(exercise: Exercise, orderIndex: Int) {
+    init(exercise: Exercise, orderIndex: Int, targetSets: Int = 3, targetReps: String = "10", restDuration: Int = 90) {
         self.id = UUID()
         self.exercise = exercise
         self.orderIndex = orderIndex
+        self.targetSets = targetSets
+        self.targetReps = targetReps
+        self.restDuration = restDuration
     }
 }

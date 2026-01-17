@@ -13,9 +13,12 @@ final class WorkoutExercise {
     
     var workout: Workout?
     
-    init(exercise: Exercise, orderIndex: Int) {
+    var restDuration: Int = 90
+    
+    init(exercise: Exercise, orderIndex: Int, restDuration: Int = 90) {
         self.id = UUID()
         self.exercise = exercise
         self.orderIndex = orderIndex
+        self.restDuration = restDuration
     }
 }

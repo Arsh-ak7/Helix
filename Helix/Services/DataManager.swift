@@ -10,47 +10,57 @@ class DataManager {
         do {
             let existingExercises = try modelContext.fetch(descriptor)
             
-            // For this prototype update, if we have exercises but they might be old versions,
-            // let's clear them to get the new images/descriptions.
-            // In a production app, we would check for updates or versioning.
+            // If empty OR missing new fields (e.g. 'level'), re-seed
             if existingExercises.isEmpty {
-                await fetchAndSave(modelContext: modelContext)
+                print("No exercises found. Seeding from Bundle...")
+                loadAndSave(modelContext: modelContext)
+            } else if existingExercises.first?.level == nil {
+                print("Detected old data format (missing level). Re-seeding...")
+                for ex in existingExercises {
+                    modelContext.delete(ex)
+                }
+                try? modelContext.save()
+                loadAndSave(modelContext: modelContext)
             } else {
-                 // Check if we have data with images (rudimentary check for 'v2' data)
-                 // If the first exercise has no description, we probably need to re-sync.
-                 if existingExercises.first?.descriptionText == nil {
-                     print("Detected old data format. Re-syncing...")
-                     for ex in existingExercises {
-                         modelContext.delete(ex)
-                     }
-                     try modelContext.save() // Commit deletion
-                     await fetchAndSave(modelContext: modelContext)
-                 }
+                print("Exercises already seeded (\(existingExercises.count) items). Skipping.")
             }
         } catch {
             print("Failed to sync exercises: \(error)")
         }
     }
     
-    private func fetchAndSave(modelContext: ModelContext) async {
+    private func loadAndSave(modelContext: ModelContext) {
+        let jsonExercises = JSONLoader.shared.loadExercises()
+        let baseUrl = "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/"
+        
+        for jsonEx in jsonExercises {
+            let description = jsonEx.instructions.joined(separator: "\n\n")
+            let primaryMuscle = jsonEx.primaryMuscles.joined(separator: ", ").capitalized
+            let secondaryMuscle = jsonEx.secondaryMuscles.joined(separator: ", ").capitalized
+            
+            let imagePathArray = jsonEx.images.map { baseUrl + $0 }
+            
+            let newEx = Exercise(
+                name: jsonEx.name,
+                muscleGroup: primaryMuscle.isEmpty ? nil : primaryMuscle,
+                secondaryMuscles: secondaryMuscle.isEmpty ? nil : secondaryMuscle,
+                equipment: jsonEx.equipment?.capitalized,
+                descriptionText: description,
+                imageUrlString: imagePathArray.first,
+                images: imagePathArray,
+                force: jsonEx.force?.capitalized,
+                level: jsonEx.level?.capitalized,
+                mechanic: jsonEx.mechanic?.capitalized,
+                category: jsonEx.category.capitalized
+            )
+            modelContext.insert(newEx)
+        }
+        
         do {
-            let apiExercises = try await APIService.shared.fetchExercises()
-            for apiEx in apiExercises {
-                let cleanDescription = apiEx.description?.replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression, range: nil)
-                
-                let newEx = Exercise(
-                    name: apiEx.name,
-                    muscleGroup: nil,
-                    equipment: nil,
-                    descriptionText: cleanDescription,
-                    imageUrlString: apiEx.mainImageUrl
-                )
-                modelContext.insert(newEx)
-            }
             try modelContext.save()
-            print("Synced \(apiExercises.count) exercises with details.")
+            print("Successfully seeded \(jsonExercises.count) exercises with full metadata.")
         } catch {
-            print("API Fetch failed: \(error)")
+            print("Failed to save seeded exercises: \(error)")
         }
     }
 }
